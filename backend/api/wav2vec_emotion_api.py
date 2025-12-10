@@ -202,9 +202,16 @@ def preprocess_for_wav2vec(features: np.ndarray) -> np.ndarray:
 
 @app.get("/")
 async def root():
+    """Health check endpoint"""
+    models_status = {
+        "wav2vec_loaded": WAV2VEC_MODEL is not None and WAV2VEC_PROCESSOR is not None,
+        "classifier_loaded": "Wav2Vec2" in MODELS,
+        "label_encoder_loaded": LABEL_ENCODER is not None
+    }
     return {
         "message": "🎤 Wav2Vec2 Emotion Recognition API",
-        "status": "running",
+        "status": "healthy" if all(models_status.values()) else "degraded",
+        "models": models_status,
         "models_loaded": list(MODELS.keys()),
     }
 
