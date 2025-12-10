@@ -81,12 +81,12 @@ backend/data/
 *.wav
 # Sadece test data'sını ignore et, eğer production data'sı varsa onu eklemeyin
 
-# Model dosyaları (opsiyonel - eğer çok büyükse)
-# backend/models/*.ckpt
-# backend/models/*.pth
-# backend/models/*.h5
-# NOT: Model dosyalarını GitHub'a yüklemek istemiyorsanız yukarıdaki satırların başındaki # işaretini kaldırın
-# Ancak Railway/Render gibi platformlarda model dosyalarına ihtiyacınız olacak!
+# Model dosyaları (build size'ı küçültmek için ignore edildi - runtime'da indirilecek)
+backend/models/*.ckpt
+backend/models/*.pth
+backend/models/*.h5
+backend/models/*.npy
+# NOT: Model dosyaları runtime'da indirilecek (MODEL_DOWNLOAD_URL ve LABEL_DOWNLOAD_URL environment variables ile)
 
 # Temporary files
 *.tmp

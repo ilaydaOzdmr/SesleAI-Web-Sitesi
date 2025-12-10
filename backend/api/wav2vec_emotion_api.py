@@ -9,7 +9,38 @@ from tensorflow.keras.models import load_model
 import os
 import logging
 import uuid
+import urllib.request
 from transformers import Wav2Vec2Processor, Wav2Vec2Model
+
+# Model dosyalarını runtime'da indir (build size'ı küçültmek için)
+def download_models_if_needed():
+    """Model dosyalarını runtime'da indir (eğer yoksa)"""
+    model_path = os.environ.get("W2V_CLASSIFIER_PATH", "/app/backend/models/wav2vec2_model.h5")
+    label_path = os.environ.get("W2V_LABELS_PATH", "/app/backend/models/classes.npy")
+    
+    model_url = os.environ.get("MODEL_DOWNLOAD_URL", "")
+    label_url = os.environ.get("LABEL_DOWNLOAD_URL", "")
+    
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    
+    if model_url and not os.path.exists(model_path):
+        logger.info(f"Downloading model from {model_url}...")
+        try:
+            urllib.request.urlretrieve(model_url, model_path)
+            logger.info("Model downloaded successfully!")
+        except Exception as e:
+            logger.error(f"Failed to download model: {e}")
+    
+    if label_url and not os.path.exists(label_path):
+        logger.info(f"Downloading labels from {label_url}...")
+        try:
+            urllib.request.urlretrieve(label_url, label_path)
+            logger.info("Labels downloaded successfully!")
+        except Exception as e:
+            logger.error(f"Failed to download labels: {e}")
+
+# Startup'ta model dosyalarını indir
+download_models_if_needed()
 
 # Mirror behavior of apibackend_w2v/main_w2v.py but inside this backend
 
