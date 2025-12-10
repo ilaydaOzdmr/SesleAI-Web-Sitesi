@@ -12,7 +12,8 @@ torch>=2.2.1,<3.0.0
 torchaudio>=2.2.1,<3.0.0
 transformers>=4.57.1
 speechbrain>=1.0.3
-tensorflow>=2.20.0
+# TensorFlow CPU-only (daha küçük)
+tensorflow-cpu>=2.20.0
 keras>=3.12.0
 
 # Audio Processing
@@ -23,7 +24,7 @@ numpy>=1.26.0  # Python 3.13 için numpy 2.x gerekli (TensorFlow ml-dtypes uyuml
 
 # Data Science
 scikit-learn>=1.7.2
-scipy>=1.16.3
+# scipy librosa tarafından otomatik yüklenecek (gerekirse)
 
 # Utilities
 pydantic>=2.12.4
