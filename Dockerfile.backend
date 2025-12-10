@@ -1,0 +1,26 @@
+# Backend için Dockerfile
+FROM python:3.10-slim
+
+# Sistem bağımlılıkları
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Python bağımlılıklarını kopyala ve yükle
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Backend kodunu kopyala
+COPY backend/ ./backend/
+COPY models/ ./models/
+
+# Portları expose et
+EXPOSE 8000 8001
+
+# Varsayılan komut (iki API'yi ayrı process'lerde çalıştır)
+CMD ["sh", "-c", "cd backend/api && uvicorn main:app --host 0.0.0.0 --port 8000 & uvicorn wav2vec_emotion_api:app --host 0.0.0.0 --port 8001 & wait"]
+
+

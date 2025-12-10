@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  speaker-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: speaker-api
+    ports:
+      - "8000:8000"
+    environment:
+      - W2V_CLASSIFIER_PATH=/app/models/wav2vec2_model.h5
+      - W2V_LABELS_PATH=/app/models/classes.npy
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173}
+    volumes:
+      - ./backend:/app/backend
+      - ./models:/app/models
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    working_dir: /app/backend/api
+    restart: unless-stopped
+
+  emotion-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: emotion-api
+    ports:
+      - "8001:8001"
+    environment:
+      - W2V_CLASSIFIER_PATH=/app/models/wav2vec2_model.h5
+      - W2V_LABELS_PATH=/app/models/classes.npy
+    volumes:
+      - ./backend:/app/backend
+      - ./models:/app/models
+    command: uvicorn wav2vec_emotion_api:app --host 0.0.0.0 --port 8001
+    working_dir: /app/backend/api
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/var/www/sesleai/frontend/dist:ro
+    depends_on:
+      - speaker-api
+      - emotion-api
+    restart: unless-stopped
+
+
