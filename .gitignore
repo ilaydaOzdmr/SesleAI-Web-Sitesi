@@ -75,11 +75,11 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 
-# Büyük ses dosyaları (data klasörü)
+# Büyük ses dosyaları (data klasörü) - BUILD'DEN ÇIKARILDI
 backend/data/
-*.flac
-*.wav
-# Sadece test data'sını ignore et, eğer production data'sı varsa onu eklemeyin
+**/*.flac
+**/*.wav
+# NOT: Data klasörü çok büyük (10,000+ dosya), build'den çıkarıldı
 
 # Model dosyaları (build size'ı küçültmek için ignore edildi - runtime'da indirilecek)
 backend/models/*.ckpt
