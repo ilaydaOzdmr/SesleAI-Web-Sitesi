@@ -29,6 +29,7 @@ scikit-learn>=1.7.2
 # Utilities
 pydantic>=2.12.4
 python-multipart>=0.0.9  # File upload için
+requests>=2.31.0  # Model dosyalarını indirmek için
 
 # HuggingFace
 huggingface-hub>=0.36.0

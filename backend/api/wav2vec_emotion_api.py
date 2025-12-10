@@ -17,6 +17,75 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Model dosyalarını runtime'da indir (build size'ı küçültmek için)
+def download_file_from_google_drive(url, destination):
+    """Google Drive'dan dosya indir (büyük dosyalar için)"""
+    try:
+        import requests
+    except ImportError:
+        logger.error("❌ 'requests' package not installed. Install it with: pip install requests")
+        return False
+    
+    try:
+        # Google Drive direct download URL formatı
+        if "drive.google.com" in url:
+            # File ID'yi çıkar
+            if "/file/d/" in url:
+                file_id = url.split("/file/d/")[1].split("/")[0]
+            elif "id=" in url:
+                file_id = url.split("id=")[1].split("&")[0]
+            else:
+                file_id = url.split("/")[-1]
+            
+            # Direct download URL
+            download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+            
+            # Session ile cookie'leri yönet (büyük dosyalar için)
+            session = requests.Session()
+            response = session.get(download_url, stream=True)
+            
+            # Virus scan sayfası kontrolü
+            if "virus scan" in response.text.lower() or "download anyway" in response.text.lower():
+                # Confirm download link'ini bul
+                confirm_url = download_url + "&confirm=t"
+                response = session.get(confirm_url, stream=True)
+            
+            # Dosyayı indir
+            total_size = int(response.headers.get('content-length', 0))
+            with open(destination, 'wb') as f:
+                if total_size == 0:
+                    f.write(response.content)
+                else:
+                    chunk_size = 8192
+                    downloaded = 0
+                    for chunk in response.iter_content(chunk_size=chunk_size):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_size > 0:
+                                percent = (downloaded / total_size) * 100
+                                if downloaded % (chunk_size * 100) == 0:  # Her 100 chunk'ta bir log
+                                    logger.info(f"Downloaded {downloaded}/{total_size} bytes ({percent:.1f}%)")
+            
+            logger.info(f"✅ File downloaded successfully: {destination}")
+            return True
+        else:
+            # Normal HTTP download
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            total_size = int(response.headers.get('content-length', 0))
+            with open(destination, 'wb') as f:
+                if total_size == 0:
+                    f.write(response.content)
+                else:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+            logger.info(f"✅ File downloaded successfully: {destination}")
+            return True
+    except Exception as e:
+        logger.error(f"❌ Failed to download from {url}: {e}")
+        return False
+
 def download_models_if_needed():
     """Model dosyalarını runtime'da indir (eğer yoksa)"""
     model_path = os.environ.get("W2V_CLASSIFIER_PATH", "/app/backend/models/wav2vec2_model.h5")
@@ -27,21 +96,27 @@ def download_models_if_needed():
     
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     
+    # Model dosyasını indir
     if model_url and not os.path.exists(model_path):
-        logger.info(f"Downloading model from {model_url}...")
-        try:
-            urllib.request.urlretrieve(model_url, model_path)
-            logger.info("Model downloaded successfully!")
-        except Exception as e:
-            logger.error(f"Failed to download model: {e}")
+        logger.info(f"📥 Downloading model from {model_url}...")
+        success = download_file_from_google_drive(model_url, model_path)
+        if not success:
+            logger.warning(f"⚠️ Model download failed, but continuing startup...")
+    elif not os.path.exists(model_path):
+        logger.warning(f"⚠️ Model file not found at {model_path} and no download URL provided")
+    else:
+        logger.info(f"✅ Model file already exists at {model_path}")
     
+    # Label dosyasını indir
     if label_url and not os.path.exists(label_path):
-        logger.info(f"Downloading labels from {label_url}...")
-        try:
-            urllib.request.urlretrieve(label_url, label_path)
-            logger.info("Labels downloaded successfully!")
-        except Exception as e:
-            logger.error(f"Failed to download labels: {e}")
+        logger.info(f"📥 Downloading labels from {label_url}...")
+        success = download_file_from_google_drive(label_url, label_path)
+        if not success:
+            logger.warning(f"⚠️ Label download failed, but continuing startup...")
+    elif not os.path.exists(label_path):
+        logger.warning(f"⚠️ Label file not found at {label_path} and no download URL provided")
+    else:
+        logger.info(f"✅ Label file already exists at {label_path}")
 
 # Mirror behavior of apibackend_w2v/main_w2v.py but inside this backend
 
@@ -139,27 +214,52 @@ def load_label_encoder():
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 Starting Wav2Vec2 Emotion Recognition API")
-    
-    # Önce model dosyalarını indir (eğer yoksa)
+    """Startup event handler - modelleri yükle"""
     try:
-        download_models_if_needed()
+        logger.info("🚀 Starting Wav2Vec2 Emotion Recognition API")
+        
+        # Önce model dosyalarını indir (eğer yoksa)
+        try:
+            download_models_if_needed()
+        except Exception as e:
+            logger.warning(f"⚠️ Model download failed (continuing anyway): {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+        
+        # Sonra modelleri yükle (her biri ayrı try-except ile)
+        try:
+            wav2vec_loaded = load_wav2vec_models()
+            if not wav2vec_loaded:
+                logger.warning("⚠️ Wav2Vec2 models could not be loaded. Feature extraction will fail.")
+        except Exception as e:
+            logger.error(f"❌ Error loading Wav2Vec2 models: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+        
+        try:
+            classifier_loaded = load_classifier_model()
+            if not classifier_loaded:
+                logger.warning("⚠️ Classifier model could not be loaded. Predictions will fail.")
+        except Exception as e:
+            logger.error(f"❌ Error loading classifier: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+        
+        try:
+            label_loaded = load_label_encoder()
+            if not label_loaded:
+                logger.warning("⚠️ Label encoder could not be loaded. Using default classes.")
+        except Exception as e:
+            logger.error(f"❌ Error loading label encoder: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+        
+        logger.info("✅ API startup completed (some models may not be loaded)")
     except Exception as e:
-        logger.warning(f"⚠️ Model download failed (continuing anyway): {e}")
-    
-    # Sonra modelleri yükle
-    wav2vec_loaded = load_wav2vec_models()
-    classifier_loaded = load_classifier_model()
-    label_loaded = load_label_encoder()
-    
-    if not wav2vec_loaded:
-        logger.warning("⚠️ Wav2Vec2 models could not be loaded. Feature extraction will fail.")
-    if not classifier_loaded:
-        logger.warning("⚠️ Classifier model could not be loaded. Predictions will fail.")
-    if not label_loaded:
-        logger.warning("⚠️ Label encoder could not be loaded. Using default classes.")
-    
-    logger.info("✅ API ready for predictions")
+        logger.error(f"❌ Critical error during startup: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # API yine de başlamaya devam etsin
 
 def convert_to_wav(input_path: str) -> str:
     try:
