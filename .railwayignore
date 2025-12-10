@@ -1,0 +1,21 @@
+# Railway build'den çıkarılacak dosyalar
+# Bu dosya Railway'ın build sırasında ignore etmesi için
+
+# Büyük data klasörü
+backend/data/
+**/*.flac
+**/*.wav
+
+# Model dosyaları (runtime'da indirilecek)
+backend/models/*.h5
+backend/models/*.npy
+backend/models/*.pth
+backend/models/*.ckpt
+
+# Gereksiz dosyalar
+node_modules/
+.git/
+*.log
+__pycache__/
+*.pyc
+
