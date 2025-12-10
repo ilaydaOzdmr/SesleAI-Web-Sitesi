@@ -18,7 +18,7 @@ keras>=3.12.0
 librosa>=0.11.0
 soundfile>=0.13.1
 pydub>=0.25.1
-numpy>=1.26.0  # Python 3.13 için numpy 2.x gerekli, TensorFlow uyumluluğu için
+numpy>=1.26.0  # Python 3.13 için numpy 2.x gerekli (TensorFlow ml-dtypes uyumluluğu)
 
 # Data Science
 scikit-learn>=1.7.2
