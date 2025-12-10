@@ -12,6 +12,10 @@ import uuid
 import urllib.request
 from transformers import Wav2Vec2Processor, Wav2Vec2Model
 
+# Logger'ı önce tanımla (download_models_if_needed'den önce)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Model dosyalarını runtime'da indir (build size'ı küçültmek için)
 def download_models_if_needed():
     """Model dosyalarını runtime'da indir (eğer yoksa)"""
@@ -39,13 +43,7 @@ def download_models_if_needed():
         except Exception as e:
             logger.error(f"Failed to download labels: {e}")
 
-# Startup'ta model dosyalarını indir
-download_models_if_needed()
-
 # Mirror behavior of apibackend_w2v/main_w2v.py but inside this backend
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="🎤 Wav2Vec2 Emotion Recognition API",
@@ -104,12 +102,11 @@ def load_wav2vec_models():
 
 def load_classifier_model():
     global MODELS
-    # NOTE: Keep original external path reference if used by your environment.
-    # You may want to move the .h5 next to this file and update path accordingly.
-    model_path = os.environ.get(
-        "W2V_CLASSIFIER_PATH",
-        r"C:\\Users\\kdrt2\\OneDrive\\Masaüstü\\emotion-recognition-app\\apibackend_w2v\\wav2vec2_model.h5",
-    )
+    # Railway'da /app/backend/models/ kullanılır, local'de backend/models/ kullanılır
+    default_path = os.path.join(BASE_DIR, "../models/wav2vec2_model.h5")
+    if not os.path.exists(default_path):
+        default_path = "/app/backend/models/wav2vec2_model.h5"
+    model_path = os.environ.get("W2V_CLASSIFIER_PATH", default_path)
     if not os.path.exists(model_path):
         logger.error(f"❌ Model file not found: {model_path}")
         return False
@@ -124,10 +121,11 @@ def load_classifier_model():
 
 def load_label_encoder():
     global LABEL_ENCODER
-    encoder_path = os.environ.get(
-        "W2V_LABELS_PATH",
-        r"C:\\Users\\kdrt2\\OneDrive\\Masaüstü\\emotion-recognition-app\\emotion-recognition-app1\\modeller\\classes.npy",
-    )
+    # Railway'da /app/backend/models/ kullanılır, local'de backend/models/ kullanılır
+    default_path = os.path.join(BASE_DIR, "../models/classes.npy")
+    if not os.path.exists(default_path):
+        default_path = "/app/backend/models/classes.npy"
+    encoder_path = os.environ.get("W2V_LABELS_PATH", default_path)
     if os.path.exists(encoder_path):
         try:
             LABEL_ENCODER = np.load(encoder_path)
@@ -142,6 +140,14 @@ def load_label_encoder():
 @app.on_event("startup")
 async def startup_event():
     logger.info("🚀 Starting Wav2Vec2 Emotion Recognition API")
+    
+    # Önce model dosyalarını indir (eğer yoksa)
+    try:
+        download_models_if_needed()
+    except Exception as e:
+        logger.warning(f"⚠️ Model download failed (continuing anyway): {e}")
+    
+    # Sonra modelleri yükle
     wav2vec_loaded = load_wav2vec_models()
     classifier_loaded = load_classifier_model()
     label_loaded = load_label_encoder()
@@ -254,7 +260,8 @@ async def predict(file: UploadFile = File(...)):
                     pass
 
 if __name__ == "__main__":
-    uvicorn.run("wav2vec_emotion_api:app", host="127.0.0.1", port=8001, reload=True, log_level="info")
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run("wav2vec_emotion_api:app", host="0.0.0.0", port=port, reload=True, log_level="info")
 
 
 

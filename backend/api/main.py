@@ -6,36 +6,6 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from speaker_api import SpeakerRecognitionAPI
 
-# Model dosyalarını runtime'da indir (build size'ı küçültmek için)
-def download_models_if_needed():
-    """Model dosyalarını runtime'da indir (eğer yoksa)"""
-    model_path = os.environ.get("W2V_CLASSIFIER_PATH", "/app/backend/models/wav2vec2_model.h5")
-    label_path = os.environ.get("W2V_LABELS_PATH", "/app/backend/models/classes.npy")
-    
-    model_url = os.environ.get("MODEL_DOWNLOAD_URL", "")
-    label_url = os.environ.get("LABEL_DOWNLOAD_URL", "")
-    
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    
-    if model_url and not os.path.exists(model_path):
-        print(f"Downloading model from {model_url}...")
-        try:
-            urllib.request.urlretrieve(model_url, model_path)
-            print("Model downloaded successfully!")
-        except Exception as e:
-            print(f"Failed to download model: {e}")
-    
-    if label_url and not os.path.exists(label_path):
-        print(f"Downloading labels from {label_url}...")
-        try:
-            urllib.request.urlretrieve(label_url, label_path)
-            print("Labels downloaded successfully!")
-        except Exception as e:
-            print(f"Failed to download labels: {e}")
-
-# Startup'ta model dosyalarını indir
-download_models_if_needed()
-
 # FastAPI uygulamasını başlat
 app = FastAPI()
 
@@ -143,4 +113,5 @@ async def correct_guess(name: str, audio_file: UploadFile = File(...)):
         return JSONResponse(status_code=400, content={"error": message})
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
