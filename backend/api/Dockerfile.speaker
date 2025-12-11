@@ -1,0 +1,30 @@
+# Speaker Recognition API için Dockerfile
+# Railway'da Root Directory: . (proje root) olmalı
+FROM python:3.10-slim
+
+# Sistem bağımlılıkları
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Python bağımlılıklarını kopyala ve yükle
+COPY backend/api/requirements.txt /app/backend/api/
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /app/backend/api/requirements.txt
+
+# Backend kodunu kopyala
+COPY backend/api/ /app/backend/api/
+COPY backend/models/ /app/backend/models/
+
+# Working directory
+WORKDIR /app/backend/api
+
+# Port expose et (Railway otomatik atar)
+EXPOSE $PORT
+
+# Start command
+CMD python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+
