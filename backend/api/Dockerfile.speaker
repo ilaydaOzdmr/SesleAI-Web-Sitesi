@@ -22,9 +22,9 @@ COPY backend/models/ /app/backend/models/
 # Working directory
 WORKDIR /app/backend/api
 
-# Port expose et (Railway otomatik atar)
-EXPOSE $PORT
+# Port expose et
+EXPOSE 8000
 
-# Start command
-CMD python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start command (shell form kullanarak environment variable'ı okuyabiliriz)
+CMD sh -c "python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
 
